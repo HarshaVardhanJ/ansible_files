@@ -1,0 +1,20 @@
+---
+# Test Playbook
+
+- hosts: vagrant-centos
+  remote_user: root
+
+  tasks:
+      - name: Ensure that the latest version of 'screen' package is installed
+        yum:
+            name: screen
+            state: latest
+
+- hosts: vagrant-ubuntu
+  remote_user: root
+
+  tasks:
+      - name: Ensure that the latest version of 'screen' package is installed
+        apt:
+            name: screen
+            state: latest
