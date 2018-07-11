@@ -1,0 +1,44 @@
+---
+# Playbook for addition of SSH public keys to remote systems
+# This playbook can be replaced by the 'authorized_key' module
+# in Ansible.
+- hosts: rpis
+  become: yes
+  vars:
+      - pubkey_location: /test/etc/ssh/authorized_keys
+      - sshd_template: /test/etc/ssh/template.j2
+
+  tasks:
+      - name: Create 'authorized_keys' directory
+        file: 
+            path: /etc/ssh/authorized_keys
+            state: directory
+            owner: 0
+            group: 0
+            mode: 0755
+
+      - name: Upload user's public keys
+        copy:
+            src: "{{ pubkey_location }}"
+            dest: /etc/ssh/authorized_keys/
+            owner: 0
+            group: 0
+            mode: 644
+
+      - name: Update 'sshd' configuration file
+        template:
+            src: "{{ sshd_template }}"
+            dest: /etc/ssh/sshd_config
+            backup: yes
+            owner: 0
+            group: 0
+            mode: 0644
+            validate: "/usr/sbin/sshd -T -f %s"
+        notify:
+            - Restart SSHD
+
+  handlers:
+      - name: Restart SSHD
+        service:
+            name: sshd
+            state: restarted
