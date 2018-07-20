@@ -15,6 +15,15 @@ ansible_user=vagrant
 ansible_ssh_private_key_file=/Users/harshavardhanj/.vagrant.d/insecure_private_key
 ansible_host=localhost
 
+[rpi]
+rpi1 ansible_host=192.168.1.30 ansible_ssh_private_key_file=/Users/harshavardhanj/.ssh/keychain/rpi1_key
+rpi2 ansible_host=192.168.1.31 ansible_ssh_private_key_file=/Users/harshavardhanj/.ssh/keychain/rpi2_key
+rpi3 ansible_host=192.168.1.32 ansible_ssh_private_key_file=/Users/harshavardhanj/.ssh/keychain/rpi3_key
+
+[rpi:vars]
+ansible_user=pi
+
+
 #all:
 #  children:
 #    vagrant-machines:

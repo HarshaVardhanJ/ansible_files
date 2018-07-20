@@ -1,0 +1,15 @@
+# Preparation of Raspberry Pis for Kubernetes Installation
+---
+
+- hosts: rpi
+  become: yes
+  
+
+  tasks:
+      - name: Update all packages
+        apt:
+            state: latest
+            update_cache: yes
+
+
+
