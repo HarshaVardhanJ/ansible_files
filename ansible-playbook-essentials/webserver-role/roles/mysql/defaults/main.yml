@@ -1,0 +1,13 @@
+---
+# /roles/mysql/defaults/main.yml    :   Defaults file for mysql
+#                                       Contains sane defaults for Ubuntu/Debian
+
+mysql_user: mysql
+mysql_port: 3306
+mysql_datadir: /var/lib/mysql
+mysql_bind: 127.0.0.1
+mysql_pkg: mysql-server
+mysql_pid: /var/run/mysqld/mysql.pid
+mysql_socket: /var/run/mysqld/mysql.sock
+mysql_cnfpath: /etc/mysql/my.cnf
+mysql_service: mysql

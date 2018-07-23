@@ -1,0 +1,11 @@
+---
+# Filename  :   mysql/tasks/configure.yml
+#               Task file for configuring the MySQL server
+
+- name: Create MySQL configuration
+  template:
+      src: my.cnf.j2
+      dest: "{{ mysql_cnfpath }}"
+      mode: 0644
+  notify:
+      - restart mysql service

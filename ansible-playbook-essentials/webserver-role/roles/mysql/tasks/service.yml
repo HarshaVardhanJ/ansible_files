@@ -1,0 +1,8 @@
+---
+# Filename  :   mysql/tasks/service.yml
+#               Start/Restart MySQL Server
+
+- name: start mysql server
+  service:
+      name: "{{ mysql_service }}"
+      state: started

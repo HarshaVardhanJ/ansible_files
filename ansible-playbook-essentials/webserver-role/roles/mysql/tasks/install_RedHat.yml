@@ -1,0 +1,8 @@
+---
+# mysql/tasks/install_RedHat.yml    :   Task file for installation of MySQL on RedHat-based systems
+
+- name: Install MySQL Server on RedHat-based systems
+  yum:
+      name: "{{ mysql_pkg }}"
+      state: latest
+      update_cache: yes

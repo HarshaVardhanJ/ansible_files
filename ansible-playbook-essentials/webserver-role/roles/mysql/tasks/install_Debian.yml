@@ -1,0 +1,8 @@
+---
+# mysql/tasks/install_Debian.yml    :   Task file for installation of MySQL on Debian-based systems
+
+- name: Install MySQL Server on Debian-based systems
+  apt:
+      name: "{{ mysql_pkg }}"
+      state: latest
+      update_cache: yes

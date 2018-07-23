@@ -1,0 +1,11 @@
+---
+# roles/mysql/vars/main.yml :   Vars file for mysql
+#                               Contains RedHat-specific variables
+
+mysql_socket: /var/lib/mysql/mysql.sock
+mysql_cnfpath: /etc/my.cnf
+mysql_service: mariadb
+mysql_pkg: 
+    - mariadb-server
+    - mariadb
+mysql_bind: 0.0.0.0
