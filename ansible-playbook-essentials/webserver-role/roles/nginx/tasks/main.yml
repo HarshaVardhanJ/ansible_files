@@ -1,0 +1,7 @@
+---
+# main.yml  :   Main tasks file for Nginx role
+
+- include: install.yml
+- include: configure.yml
+- include: delete-sites-enabled.yml
+- include: service.yml

@@ -1,0 +1,5 @@
+---
+# main.yml  :   Role dependency for Nginx
+
+dependencies:
+    - {role: base}

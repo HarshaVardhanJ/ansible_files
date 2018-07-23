@@ -1,0 +1,6 @@
+---
+# defaults/main.yml :   Default variable values for Nginx role
+
+nginx_port: 80
+nginx_root: /usr/share/nginx/html
+nginx_index: index.html

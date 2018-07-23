@@ -1,0 +1,7 @@
+---
+# service.yml   :   Managing Nginx service
+
+- name: Managing Nginx service
+  service:
+      name: nginx
+      state: started

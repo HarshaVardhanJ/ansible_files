@@ -1,0 +1,28 @@
+---
+# main.yml  :   Essential tasks. Should run on all nodes
+
+- name: Creating new group
+  group:
+      name: testgroup
+      state: present
+
+- name: Creating user and adding to previously created group
+  user:
+      name: testuser
+      comment: "Test User for Ansible"
+      uid: 2001
+      group: testgroup
+
+- name: Installing htop on Debian-based systems
+  apt:
+      name: htop
+      state: latest
+      update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Installing htop on RedHat-based systems
+  yum:
+      name: htop
+      state: latest
+      update_cache: yes
+  when: ansible_os_family == "RedHat"

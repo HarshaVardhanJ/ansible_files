@@ -1,0 +1,7 @@
+---
+# handlers/main.yml :   File for restarting Nginx service
+
+- name: restart nginx service
+  service:
+      name: nginx
+      state: restarted

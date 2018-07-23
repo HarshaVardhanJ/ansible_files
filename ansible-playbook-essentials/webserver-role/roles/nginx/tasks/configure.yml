@@ -1,0 +1,15 @@
+---
+# configure.yml :   Configure the Nginx webserver
+
+- name: Create default site configuration
+  template:
+      src: default.conf.j2
+      dest: /etc/nginx/conf.d/default.conf
+      mode: 0644
+  notify:
+      - restart nginx service
+
+- name: Create homepage for webserver
+  copy:
+      src: index.html
+      dest: /usr/share/nginx/html/index.html
