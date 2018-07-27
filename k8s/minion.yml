@@ -3,7 +3,7 @@
 # k8s/main.yml  :   File for installation of K8s and minion initialisation on Raspberry Pi
 
 - hosts: rpi
-  remote_user: vagrant
+  remote_user: pi
   become: yes
   roles:
       - base
