@@ -4,11 +4,11 @@
  # Deleting docker installation script
 - name: remove docker install script
   file:
-      path: "{{ home_dir }}"/docker_install.sh
+      path: "{{ home_dir }}/docker_install.sh"
       state: absent
 
  # Rebooting after changes to '/boot/cmdline.txt' and disabling swap
- - name: reboot after changes
-   shell: sleep 3 && reboot
-   async: 1
-   poll: 0
+- name: reboot after changes
+  shell: sleep 3 && reboot
+  async: 1
+  poll: 0

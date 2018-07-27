@@ -5,6 +5,8 @@
   apt_key:
       url: "{{ k8s_apt_key_url }}"
       state: present
+  
+- name: Enable Kubernetes repo in list
   lineinfile:
       path: "{{ k8s_apt_sources_file }}"
       create: yes
