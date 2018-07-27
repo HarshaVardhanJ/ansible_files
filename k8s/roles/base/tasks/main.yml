@@ -1,0 +1,11 @@
+---
+# k8s/roles/base/tasks/main.yml :   Main task file for base installation of K8s
+
+- include: docker_install.yml
+- include: user_docker.yml
+- include: disable_swap.yml
+- include: cmdline_edit.yml
+- include: reboot_reconnect.yml
+- include: k8s_repo.yml
+- include: k8s_install.yml
+- include: k8s_networking_driver.yml

@@ -1,0 +1,11 @@
+---
+# k8s/roles/base/tasks/k8s_repo.yml :   Task for adding repo for installation of K8s
+
+- name: Add Kubernetes repo lists
+  apt_key:
+      url: "{{ k8s_apt_key_url }}"
+      state: present
+  lineinfile:
+      path: "{{ k8s_apt_sources_file }}"
+      create: yes
+      line: 'deb http://apt.kubernetes.io/ kubernetes-xenial main'

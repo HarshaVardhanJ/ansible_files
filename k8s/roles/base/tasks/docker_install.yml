@@ -1,0 +1,16 @@
+---
+# kubernetes/tasks/docker_download.yml  :   Downloading the Docker installation script and installing it
+
+- name: Download Docker installation script
+  get_url:
+      url: "{{ docker_script_url }}"
+      dest: "{{ home_dir }}"/docker_install.sh
+      mode: 0540
+  register: docker_script
+
+- name: Installing Docker
+  shell: "{{ home_dir }}"/docker_install.sh
+  args:
+      executable: /bin/sh
+  when: docker_script.changed
+  register: docker_install

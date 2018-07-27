@@ -1,0 +1,10 @@
+
+---
+# k8s/main.yml  :   File for installation of K8s and master initialisation on Raspberry Pi
+
+- hosts: rpi
+  remote_user: vagrant
+  become: yes
+  roles:
+      - base
+      - k8s-master

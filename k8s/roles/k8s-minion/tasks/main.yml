@@ -1,0 +1,4 @@
+---
+# k8s/kubernetes-minion/tasks/main.yml  :   Main tasks file for K8s minion initialisation
+
+- include: k8s_minion_init.yml

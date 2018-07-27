@@ -1,0 +1,9 @@
+---
+# defaults file for kubernetes
+# Provides sane defaults for variables
+
+docker_script_url: http://get.docker.com
+home_dir: /home/pi
+k8s_apt_key_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+k8s_apt_sources_file: /etc/apt/sources.list.d/kubernetes.list
+k8s_pkg : kubeadm

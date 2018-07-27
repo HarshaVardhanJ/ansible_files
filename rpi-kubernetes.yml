@@ -1,15 +1,109 @@
-# Preparation of Raspberry Pis for Kubernetes Installation
+# Preparation of Raspberry Pis for Kubernetes Installation.
+#
+# Only master and minion initialisation have been left out
+# as they require separate actions depending on which node
+# needs to be assigned as master and minion.
 ---
 
 - hosts: rpi
+  remote_user: pi
   become: yes
-  
+  # The 'strategy' plugin controls play execution.
+  # Using the 'free' directive allows each host to run until the end as fast as it can.
+  # Normally, Ansible executes a task on multiple hosts and waits for all hosts before
+  # progressing to the next task.
+  strategy: free
+  vars:
+      - docker_script_url: http://get.docker.com
+      - home_dir: /home/pi
+      - k8s_apt_key_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+      - k8s_apt_sources_file: /etc/apt/sources.list.d/kubernetes.list
+      - k8s_pkg : kubeadm
+
 
   tasks:
+      # Update all packages to their latest version
       - name: Update all packages
         apt:
+            name: *
             state: latest
             update_cache: yes
 
+      # Downloading Docker installation script from URL
+      - name: Download Docker
+        get_url:
+            url: "{{ docker_script_url }}"
+            dest: "{{ home_dir }}"/docker_install.sh
+            mode: 0540
+
+      # Installing Docker from install script
+      - name: Install Docker
+        shell: "{{ home_dir }}"/docker_install.sh
+        args:
+            executable: /bin/sh
+        notify:
+            - remove docker install script
+
+      # Adding user 'pi' to group 'docker'
+      - name: Add 'pi' user to group 'docker'
+        user:
+            name: pi
+            groups: docker
+
+      # For Kubernetes 1.7 and later, an error will be encountered
+      # if swap space is enabled.
+      - name: Disable swap
+        shell: dphys-swapfile swapoff && dphys-swapfile uninstall && update-rc.d dphys-swapfile remove
+
+      # Edit '/boot/cmdline.txt'
+      - name: Edit '/boot/cmdline.txt'
+        lineinfile:
+            path: /boot/cmdline.txt
+            backup: yes
+            line: 'cgroup_enable=cpuset cgroup_memory=1'
+        register: bootfile_edit
+
+      # Rebooting after changes to '/boot/cmdline.txt' and disabling swap
+      - name: Reboot after change to '/boot/cmdline.txt' file
+        shell: sleep 3 && reboot
+        async: 1
+        poll: 0
+        when: bootfile_edit is changed
+
+      # Waiting for Pi to reboot in order to connect to it
+      - name: Waiting for reboot to complete
+        wait_for_connection:
+            connect_timeout: 20
+            sleep: 5
+            delay: 5
+            timeout: 240
+         when: bootfile_edit is changed
+
+      # Adding Kubernetes repository and its GPG keys
+      - name: Add Kubernetes repo lists
+        apt_key:
+            url: "{{ k8s_apt_key_url }}"
+            state: present
+        lineinfile:
+            path: "{{ k8s_apt_sources_file }}"
+            create: yes
+            line: 'deb http://apt.kubernetes.io/ kubernetes-xenial main'
+
+      # Update repo-list and cache, and install Kubernetes i.e. 'kubeadm'
+      - name: Install 'kubeadm'
+        apt:
+            name: "{{ k8s_pkg }}"
+            state: present
+            update_cache: yes
+
+      # Install Weave networking driver for inter-node communication in K8s
+      - name: Install network driver for K8s
+        shell: kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
 
+  handlers:
+      # Delete Docker installation script
+      - name: remove docker install script
+        file:
+            path: "{{ home_dir }}"/docker_install.sh
+            state: absent

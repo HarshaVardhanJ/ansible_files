@@ -1,0 +1,16 @@
+---
+# kubernetes/tasks/k8s_master_dir.yml   :   Task file for allowing user to administer k8s
+
+- name: User directory k8s setup
+  file:
+      path: "{{ home_dir }}"/.kube
+      state: directory
+      mode: 0755
+      owner: pi
+      group: pi
+  copy:
+      src: /etc/kubernetes/admin.conf
+      dest: "{{ home_dir }}"/.kube/admin.conf
+      remote_src: yes
+      owner: pi
+      group: pi

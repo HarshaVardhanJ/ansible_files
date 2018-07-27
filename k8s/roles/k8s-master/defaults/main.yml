@@ -1,0 +1,5 @@
+---
+# defaults file for kubernetes
+# Provides sane defaults for variables
+
+home_dir: /home/pi

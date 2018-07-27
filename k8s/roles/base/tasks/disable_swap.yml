@@ -1,0 +1,7 @@
+---
+# k8s/roles/base/tasks/disable_swap.yml :   Task file for disabling swap
+# For Kubernetes 1.7 and later, an error will be encountered if swap space is enabled
+
+- name: Disable swap
+  shell: dphys-swapfile swapoff && dphys-swapfile uninstall && update-rc.d dphys-swapfile remove
+  register: swap_disable

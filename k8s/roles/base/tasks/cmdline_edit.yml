@@ -1,0 +1,10 @@
+---
+# k8s/roles/base/tasks/cmdline_edit.yml :   Task for making necessary changes to '/boot/cmdline.txt' file for K8s
+
+- name: Edit cmdline.txt file
+  lineinfile:
+      path: /boot/cmdline.txt
+      backup: yes
+      line: 'cgroup_enable=cpuset cgroup_memory=1'
+  register: cmdline_edit
+  when: swap_disable.changed

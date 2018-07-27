@@ -1,0 +1,5 @@
+---
+# k8s/roles/k8s-master/tasks/main.yml   :  Main task file for K8s master initialisation
+
+- include: k8s_master_init.yml
+- include: k8s_master_dir.yml

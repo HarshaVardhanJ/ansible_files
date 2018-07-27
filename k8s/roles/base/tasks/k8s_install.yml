@@ -1,0 +1,8 @@
+---
+# kubernetes/tasks/k8s_install.yml  :   Task for installation of K8s
+
+- name: Install "{{ k8s_pkg }}"
+  apt:
+      name: "{{ k8s_pkg }}"
+      state: present
+      update_cache: yes

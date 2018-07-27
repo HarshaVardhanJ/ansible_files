@@ -1,0 +1,8 @@
+---
+# kubernetes/tasks/user_docker.yml  :   Modifies existing user by adding to 'docker' group
+
+- name: Add user 'pi' to group 'docker'
+  user:
+      name: pi
+      groups: docker
+  when: docker_install.changed

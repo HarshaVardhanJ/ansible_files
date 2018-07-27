@@ -1,0 +1,12 @@
+---
+# kubernetes/tasks/k8s_master_init.yml  :   Task file for initialising K8s master
+
+- name: Initialise K8s master
+  shell: kubeadm init --token-ttl=0 --apiserver-advertise-address={{ ansible_default_ipv4.address }} | tee ~/join_token | grep "kubeadm join --token"
+  register: kubeadm_init_token
+
+- name: Copy join token to file on local machine
+  fetch:
+      src: "{{ home_dir }}"/join_token
+      dest: ./join_token
+  when: kubadm_init_token.rc == 0

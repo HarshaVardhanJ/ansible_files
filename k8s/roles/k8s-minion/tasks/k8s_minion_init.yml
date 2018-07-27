@@ -1,0 +1,16 @@
+---
+# k8s/roles/kubernetes/tasks/k8s_minion_init.yml    :   Task file for initialising K8s minions with master
+
+- name: Obtaining join-token from local machine
+  copy:
+      src: ~/k8s_init_token
+      dest: "{{ home_dir }}"/k8s_init_token
+      mode: 0540
+      owner: pi
+      group: pi
+  register: join_token_acquired
+
+- name: Initialising K8s minion
+  script: "{{ home_dir }}"/k8s_init_token
+  args:
+      executable: /bin/sh

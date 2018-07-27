@@ -1,0 +1,14 @@
+---
+# kubernetes/tasks/reboot_reconnect.yml :   Task for rebooting system and reconnecting to it
+
+- name: Reboot system
+  shell: sleep 5 && reboot
+  async: 1
+  poll: 0
+
+- name: Reconnect to system
+  wait_for_connection:
+      connect_timeout: 20
+      sleep: 5
+      delay: 5
+      timeout: 240
