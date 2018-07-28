@@ -1,0 +1,126 @@
+---
+# rpi_configure.yml :   Playbook for configuring freshly-booted Raspberry Pis
+
+- hosts: rpi
+  remote_user: pi
+  become: yes
+
+  vars:
+    # Packages to be installed
+    packages:
+        - vim-common        # Vim Text Editor
+        - tmux              # Terminal Multiplexer
+        - elinks            # CLI-based browser
+        - network-manager   # Network management
+        - libnm-glib-dev    # Needed for managing networking using Ansible
+
+    # SSH keys to be added
+    ssh_keys:
+        - /Users/harshavardhanj/.ssh/keychain/rpi_key.pub
+
+    # NetworkManager ethernet interface information
+    nmcli_eth:
+        - conn_name: '{{ eth_laptop_name }}'
+          ifname: eth0
+          ip4: '{{ eth_laptop_ip }}'
+          gw4: '{{ eth_laptop_gw }}'
+          
+        - conn_name: '{{ eth_router_name }}'
+          ifname: eth0
+          ip4: '{{ eth_router_ip }}'
+          gw4: '{{ eth_laptop_gw }}'
+
+    # NetworkManager wireless interface information
+    nmcli_wlan:
+        - conn_name: '{{ wlan_name }}'
+          ifname: wlan0
+          ip4: '{{ wlan_ip }}'
+          gw4: '{{ wlan_gw }}'
+
+    wifi_net_info:
+        - ssid: "Office"
+          psk: "eme@1363"
+
+        - ssid: "Home"
+          psk: "1123581321"
+
+    eth_router_name: WiredRouterConn
+    eth_router_ip: "192.168.1.51/24"
+    eth_router_gw: "192.168.1.1"
+
+    eth_laptop_name: WiredLaptopConn
+    eth_laptop_ip: "192.168.2.10/24"
+    eth_laptop_gw: "192.168.2.1"
+
+    wlan_name: WiFiConn
+    wlan_ip: "192.168.1.51/24"
+    wlan_gw: "192.168.1.1"
+
+
+  tasks:
+    # Update all packages and repositories
+    - name: Update all packages
+      apt:
+          name: "*"
+          state: latest
+          make_cache: yes
+
+    # Install packages given in 'vars'
+    - name: Install "{{ packages }}"
+      apt:
+          name: "{{ package }}"
+          state: latest
+          make_cache: yes
+
+    # Cleanup after updating and installation of packages
+    - name: Remove useless packages from cache
+      apt:
+          autoclean: yes
+
+    - name: Remove dependencies that are no longer required
+      apt:
+          autoremove: yes
+
+    # Copy given SSH keys to user's 'authorized keys' file
+    - name: Copy SSH keys
+      authorized_key:
+          user: pi
+          state: present
+          key: "{{ ssh_keys }}"
+
+    # Set up Wired Networking
+    - name: Set up Wired(Ethernet) Connection
+      nmcli:
+          type: ethernet
+          conn_name: '{{ item.conn_name }}'
+          ip4: '{{ item.ip4 }}'
+          gw4: '{{ item.gw4 }}'
+          state: present
+          autoconnect: yes
+      with_items:
+          - "{{ nmcli_eth }}"
+
+     # Set up Wireless Networking
+    - name: Set up Wireless(WiFi) Connection
+      blockinfile:
+          path: /etc/wpa_supplicant/wpa_supplicant.conf
+          backup: yes
+          block: |
+              ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+              update_config=1
+
+    - name: Set up Wireless(WiFi) Connection
+      blockinfile:
+          path: /etc/wpa_supplicant/wpa_supplicant.conf
+          backup: yes
+          block: |
+              network={
+              ssid={{ item.ssid }}
+              psk={{ item.psk }}
+              proto=RSN
+              key_mgmt=WPA-PSK
+              pairwise=CCMP
+              auth_alg=OPEN
+              }
+          with_items:
+              - '{{ wifi_net_info }}'

@@ -5,8 +5,8 @@
   become: yes
   vars:
       package_name:
-          - screen
-          - vim
+          - tmux
+          - vim-common
           - elinks
 
   tasks:
