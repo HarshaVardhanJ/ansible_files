@@ -13,6 +13,8 @@
         - elinks            # CLI-based browser
         - network-manager   # Network management
         - libnm-glib-dev    # Needed for managing networking using Ansible
+        - dbus              # Needed for managing networking using Ansible   
+        - python-dbus       # Needed by 'nmcli' module of Ansible
 
     # SSH keys to be added
     ssh_keys:
@@ -82,12 +84,12 @@
           autoremove: yes
 
     # Copy given SSH keys to user's 'authorized keys' file
-    - name: Copy SSH keys
-      authorized_key:
-          user: pi
-          state: present
-          key: "{{ ssh_keys }}"
-
+    #    - name: Copy SSH keys
+    #      authorized_key:
+    #          user: pi
+    #          state: present
+    #          key: "{{ ssh_keys }}"
+    #
     # Set up Wired Networking
     - name: Set up Wired(Ethernet) Connection
       nmcli:
@@ -122,5 +124,5 @@
               pairwise=CCMP
               auth_alg=OPEN
               }
-          with_items:
-              - '{{ wifi_net_info }}'
+      with_items:
+          - '{{ wifi_net_info }}'
