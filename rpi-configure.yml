@@ -68,7 +68,7 @@
     # Install packages given in 'vars'
     - name: Install "{{ packages }}"
       apt:
-          name: "{{ package }}"
+          name: "{{ packages }}"
           state: latest
           update_cache: yes
 
