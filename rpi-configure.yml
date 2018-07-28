@@ -63,14 +63,14 @@
       apt:
           name: "*"
           state: latest
-          make_cache: yes
+          update_cache: yes
 
     # Install packages given in 'vars'
     - name: Install "{{ packages }}"
       apt:
           name: "{{ package }}"
           state: latest
-          make_cache: yes
+          update_cache: yes
 
     # Cleanup after updating and installation of packages
     - name: Remove useless packages from cache
