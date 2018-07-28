@@ -23,11 +23,13 @@
     # NetworkManager ethernet interface information
     nmcli_eth:
         - conn_name: '{{ eth_laptop_name }}'
+          type: ethernet
           ifname: eth0
           ip4: '{{ eth_laptop_ip }}'
           gw4: '{{ eth_laptop_gw }}'
           
         - conn_name: '{{ eth_router_name }}'
+          type: ethernet
           ifname: eth0
           ip4: '{{ eth_router_ip }}'
           gw4: '{{ eth_laptop_gw }}'
@@ -38,25 +40,22 @@
           ifname: wlan0
           ip4: '{{ wlan_ip }}'
           gw4: '{{ wlan_gw }}'
-
-    wifi_net_info:
-        - ssid: "Office"
+          dns: '{{ wlan_dns }}'
+          ssid: "Office"
           psk: "eme@1363"
 
-        - ssid: "Home"
-          psk: "1123581321"
-
-    eth_router_name: WiredRouterConn
+    eth_router_name: "WiredRouterConn"
     eth_router_ip: "192.168.1.51/24"
     eth_router_gw: "192.168.1.1"
 
-    eth_laptop_name: WiredLaptopConn
+    eth_laptop_name: "WiredLaptopConn"
     eth_laptop_ip: "192.168.2.10/24"
     eth_laptop_gw: "192.168.2.1"
 
-    wlan_name: WiFiConn
+    wlan_name: "WiFiConn"
     wlan_ip: "192.168.1.51/24"
     wlan_gw: "192.168.1.1"
+    wlan_dns: "8.8.8.8 8.8.4.4"
 
 
   tasks:
@@ -93,7 +92,7 @@
     # Set up Wired Networking
     - name: Set up Wired(Ethernet) Connection
       nmcli:
-          type: ethernet
+          type: '{{ item.type }}'
           conn_name: '{{ item.conn_name }}'
           ip4: '{{ item.ip4 }}'
           gw4: '{{ item.gw4 }}'
@@ -125,4 +124,16 @@
               auth_alg=OPEN
               }
       with_items:
-          - '{{ wifi_net_info }}'
+          - '{{ nmcli_wlan }}'
+
+
+    - name: nmcli wifi setup
+      command: nmcli device wifi connect '{{ item.ssid }}' name '{{ item.conn_name }}' ifname '{{ item.ifname }}' password "{{ item.psk }}"
+      with_items:
+          - '{{ nmcli_wlan }}'
+      register: wifi_add
+
+    - name: nmcli wifi ip address
+      shell: nmcli con mod '{{ item.conn_name }}' ipv4.addresses '{{ item.ip4 }}' ipv4.gateway '{{ item.gw4 }}' ipv4.dns '{{ item.dns }}' connection.autoconnect yes && nmcli con up '{{ item.conn_name }}'
+      with_items:
+          - '{{ nmcli_wlan }}'
