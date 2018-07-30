@@ -8,7 +8,8 @@
   vars:
     # Packages to be installed
     packages:
-        - vim-common        # Vim Text Editor
+        - vim               # Vim Text Editor
+        - vim-common        # Vim Text Editor common files
         - tmux              # Terminal Multiplexer
         - elinks            # CLI-based browser
         - network-manager   # Network management
@@ -32,17 +33,25 @@
           type: ethernet
           ifname: eth0
           ip4: '{{ eth_router_ip }}'
-          gw4: '{{ eth_laptop_gw }}'
+          gw4: '{{ eth_router_gw }}'
 
     # NetworkManager wireless interface information
     nmcli_wlan:
-        - conn_name: '{{ wlan_name }}'
+        - conn_name: "WiFiOffice"
           ifname: wlan0
           ip4: '{{ wlan_ip }}'
           gw4: '{{ wlan_gw }}'
           dns: '{{ wlan_dns }}'
           ssid: "Office"
           psk: "eme@1363"
+
+        - conn_name: "WiFiSecond_Floor"
+          ifname: wlan0
+          ip4: '{{ wlan_ip }}'
+          gw4: '{{ wlan_gw }}'
+          dns: '{{ wlan_dns }}'
+          ssid: "Second_Floor"
+          psk: "11235_burl_81321"
 
     eth_router_name: "WiredRouterConn"
     eth_router_ip: "192.168.1.51/24"
@@ -82,18 +91,35 @@
       apt:
           autoremove: yes
 
+    - name: Copy local SSH public key(s) to machine
+      copy:
+          src: '{{ item }}'
+          dest: ~/
+          owner: pi
+          group: pi
+          mode: 0400
+      with_items:
+          - '{{ ssh_keys }}'
+      register: ssh_key_file
+
     # Copy given SSH keys to user's 'authorized keys' file
-    #    - name: Copy SSH keys
-    #      authorized_key:
-    #          user: pi
-    #          state: present
-    #          key: "{{ ssh_keys }}"
-    #
+    - name: Copy SSH keys
+      authorized_key:
+          user: pi
+          state: present
+          key: '{{ item }}'
+      with_items:
+          - '{{ ssh_key_file.dest }}'
+      when: ssh_key_file.changed
+      notify: delete ssh public keys
+
+    
     # Set up Wired Networking
     - name: Set up Wired(Ethernet) Connection
       nmcli:
-          type: '{{ item.type }}'
           conn_name: '{{ item.conn_name }}'
+          type: '{{ item.type }}'
+          ifname: '{{ item.ifname }}'
           ip4: '{{ item.ip4 }}'
           gw4: '{{ item.gw4 }}'
           state: present
@@ -114,6 +140,7 @@
       blockinfile:
           path: /etc/wpa_supplicant/wpa_supplicant.conf
           backup: yes
+          marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.ssid }}"
           block: |
               network={
               ssid={{ item.ssid }}
@@ -127,13 +154,29 @@
           - '{{ nmcli_wlan }}'
 
 
-    - name: nmcli wifi setup
+    # Checking if WiFi network is present and adding it, if it is.
+    - name: nmcli wifi search
+      shell: nmcli device wifi list | grep '{{ item.ssid }}'
+      with_items:
+          - '{{ nmcli_wlan }}'
+      register: wifi_present
+      failed_when: wifi_present.rc == 2
+
+    - name: nmcli wifi add
       command: nmcli device wifi connect '{{ item.ssid }}' name '{{ item.conn_name }}' ifname '{{ item.ifname }}' password "{{ item.psk }}"
       with_items:
           - '{{ nmcli_wlan }}'
       register: wifi_add
+      #      when: wifi_present.rc == 0
 
     - name: nmcli wifi ip address
       shell: nmcli con mod '{{ item.conn_name }}' ipv4.addresses '{{ item.ip4 }}' ipv4.gateway '{{ item.gw4 }}' ipv4.dns '{{ item.dns }}' connection.autoconnect yes && nmcli con up '{{ item.conn_name }}'
       with_items:
           - '{{ nmcli_wlan }}'
+      when: wifi_add.rc == 0
+
+  handlers:
+    - name: delete ssh public keys
+      file:
+          path: '{{ ssh_key_file.dest }}'
+          state: absent
