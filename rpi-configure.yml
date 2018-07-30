@@ -11,6 +11,9 @@
         - vim               # Vim Text Editor
         - vim-common        # Vim Text Editor common files
         - tmux              # Terminal Multiplexer
+        - ranger            # Terminal-based file manager
+        - htop              # Process monitor
+        - sysstat           # For system activity reporter
         - elinks            # CLI-based browser
         - network-manager   # Network management
         - libnm-glib-dev    # Needed for managing networking using Ansible
