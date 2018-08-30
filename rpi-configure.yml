@@ -146,12 +146,12 @@
           marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.ssid }}"
           block: |
               network={
-              ssid={{ item.ssid }}
-              psk={{ item.psk }}
-              proto=RSN
-              key_mgmt=WPA-PSK
-              pairwise=CCMP
-              auth_alg=OPEN
+                ssid={{ item.ssid }}
+                psk={{ item.psk }}
+                proto=RSN
+                key_mgmt=WPA-PSK
+                pairwise=CCMP
+                auth_alg=OPEN
               }
       with_items:
           - '{{ nmcli_wlan }}'
