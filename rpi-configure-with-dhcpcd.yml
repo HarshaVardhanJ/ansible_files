@@ -1,0 +1,212 @@
+---
+#   rpi-configure-with-dhcpcd.yml   :   Playbook for configuring freshly-booted Raspberry Pis
+#
+
+- hosts: rpi
+  remote_user: pi
+  become: yes
+
+  vars:
+      # Home directory
+      home_dir: /home/pi
+      # Packages to be installed
+      packages:
+          - vim                   # Vim text editor
+          - vim-common            # Vim text editor common files
+          - htop                  # Process monitor
+          - sysstat               # System activity reporter
+          - net-tools             # network tools
+          - rsyslog               # Rsyslog package for advanced logging
+          - iptables              # IPTables firewall
+          - iptables-persistent   # Package to ensure that firewall rules survive a reboot
+
+      # SSH public keys to be added
+      ssh_keys:
+          - /Users/harshavardhanj/.ssh/keychain/rpi_key.pub
+
+      # Vim configuration file
+      vim_config_file:
+          - /Users/harshavardhanj/.vimrc
+
+      # WiFi network information
+      network_wlan:
+          - ssid: "{{ wireless_ssid }}"
+            psk: "{{ wireless_psk }}"
+
+          - ssid: "{{ wireless_ssid_2 }}"
+            psk: "{{ wireless_psk_2 }}"
+      
+
+      # Network configuration information
+      network_config:
+          - ip: "{{ router_ip }}"
+            gateway: "{{ router_gateway }}"
+            dns: "{{ dns }}"
+            arping: "{{ router_arp }}"
+            interface: "{{ wired_interface }}"
+
+          - ip: "{{ laptop_ip }}"
+            gateway: "{{ laptop_gateway }}"
+            dns: "{{ dns }}"
+            arping: "{{ laptop_arp }}"
+            interface: "{{ wired_interface }}"
+
+          - ip: "{{ wireless_ip }}"
+            gateway: "{{ wireless_gateway }}"
+            dns: "{{ dns }}"
+            arping: "{{ wireless_arp }}"
+            interface: "{{ wireless_interface }}"
+
+      router_ip: "192.168.1.50/24"
+      router_gateway: "192.168.1.1"
+      router_arp: "192.168.1.1"
+
+      laptop_ip: "192.168.2.50/24"
+      laptop_gateway: "192.168.2.1"
+      laptop_arp: "192.168.2.1"
+
+      wired_interface: "eth0"
+
+      wireless_ip: "192.168.1.50/24"
+      wireless_gateway: "192.168.1.1"
+      wireless_arp: "192.168.1.1"
+      wireless_interface: "wlan0"
+
+      wireless_ssid_1: "Office"
+      wireless_psk_1: '"eme@1363"'
+
+      wireless_ssid_2: "Home"
+      wireless_psk_2: '"11235_burl_81321"'
+
+      dns: "8.8.8.8 8.8.4.4"
+
+
+  tasks:
+      # Update all repositories and packages
+      - name: Update installed packages
+        apt:
+            name: "*"
+            state: latest
+            update_cache: yes
+
+      # Install packages defined under 'vars-->packages'
+      - name: Install "{{ item }}"
+        apt:
+            name: "{{ item }}"
+            state: latest
+            update_cache: yes
+        with_items:
+            - "{{ packages }}"
+
+      # Cleanup after installation of packages
+      - name: Remove unused data from cache
+        apt:
+            autoclean: yes
+
+      - name: Remove unused dependencies
+        apt:
+            autoremove: yes
+
+      # Import local SSH public key(s) to Raspberry Pi
+      - name: Import local SSH public keys
+        copy:
+            src: "{{ item }}"
+            dest: "{{ home_dir }}"
+            owner: pi
+            group: pi
+            mode: 0400
+        with_items:
+            - "{{ ssh_keys }}"
+        register: ssh_pub_key
+
+      # Add copied SSH public keys to user's 'authorized_keys' file
+      - name: Add SSH public key
+        authorized_key:
+            user: pi
+            state: present
+            key: "{{ item }}"
+        with_items:
+            - "{{ ssh_pub_key.dest }}"
+        when: ssh_pub_key.changed
+        notify: Delete imported SSH public key
+
+
+      # Copy Vim configuration file to machine
+      - name: Copy Vim configuration file
+        copy:
+          src: "{{ item }}"
+          dest: "{{ home_dir }}"
+          owner: pi
+          group: pi
+          mode: 0644
+        with_items:
+            - "{{ vim_config_file }}"
+
+      # WiFi network configuration file
+      - name: WPA supplicant configuration file
+        blockinfile:
+            path: /etc/wpa_supplicant/wpa_supplicant.conf
+            backup: yes
+            block: |
+                ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+                update_config=1
+
+      # Add WiFi network sign-in credentials
+      - name: WPA supplicant
+        blockinfile:
+            path: /etc/wpa_supplicant/wpa_supplicant.conf
+            backup: yes
+            marker: "# {mark} ANSIBLE MANAGED BLOCK ( SSID : {{ item.ssid }} )"
+            block: |
+                network={
+                    ssid={{ item.ssid }}
+                    psk={{ item.psk }}
+                    proto=RSN
+                    key_mgmt=WPA-PSK
+                    pairwise=CCMP
+                    auth_alg=OPEN
+                }
+            with_items:
+                - "{{ network_wlan }}"
+
+
+      # Add network configuration to 'dhcpcd.conf' file - Part 1
+      - name: Configure dhcpcd.conf-1
+        blockinfile:
+            path: /etc/dhcpcd.conf
+            backup: yes
+            marker: "# {mark} ANSIBLE MANAGED BLOCK - 1"
+            block: |
+                interface {{ item.interface }}
+
+      # Add network configuration to 'dhcpcd.conf' file - Part 2
+      - name: Configure dhcpcd.conf-2
+        blockinfile:
+            path: /etc/dhcpcd.conf
+            backup: yes
+            marker: "# {mark} ANSIBLE MANAGED BLOCK - 1"
+            block: |
+                interface {{ item.interface }}
+                arping {{ item.arping }}
+            with_items:
+                - "{{ network_config }}"
+      # Add network configuration to 'dhcpcd.conf' file
+      - name: Configure dhcpcd.conf-2
+        blockinfile:
+            path: /etc/dhcpcd.conf
+            backup: yes
+            marker: "# {mark} ANSIBLE MANAGED BLOCK ( INTERFACE : {{ item.interface }} )"
+            block: |
+                profile {{ item.arping }}
+                static ip_address={{ item.static_ip }}
+                static routers={{ item.gateway }}
+                static domain_name_servers={{ item.dns }}
+            with_items:
+                - "{{ network_config }}"
+
+
+  handlers:
+      - name: Delete imported SSH public key
+        file:
+            path: "{{ ssh_pub_key.dest }}"
+            state: absent

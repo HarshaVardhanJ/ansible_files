@@ -8,21 +8,28 @@
   vars:
     # Packages to be installed
     packages:
-        - vim               # Vim Text Editor
-        - vim-common        # Vim Text Editor common files
-        - tmux              # Terminal Multiplexer
-        - ranger            # Terminal-based file manager
-        - htop              # Process monitor
-        - sysstat           # For system activity reporter
-        - elinks            # CLI-based browser
-        - network-manager   # Network management
-        - libnm-glib-dev    # Needed for managing networking using Ansible
-        - dbus              # Needed for managing networking using Ansible   
-        - python-dbus       # Needed by 'nmcli' module of Ansible
+        - vim                   # Vim Text Editor
+        - vim-common            # Vim Text Editor common files
+        - tmux                  # Terminal Multiplexer
+        - ranger                # Terminal-based file manager
+        - htop                  # Process monitor
+        - sysstat               # For system activity reporter
+        - elinks                # CLI-based browser
+        - network-manager       # Network management
+        - libnm-glib-dev        # Needed for managing networking using Ansible
+        - dbus                  # Needed for managing networking using Ansible   
+        - python-dbus           # Needed by 'nmcli' module of Ansible
+        - iptables              # IPTables firewall
+        - iptables-persistent   # Package to ensure that firewall rules survive reboot
 
     # SSH keys to be added
     ssh_keys:
         - /Users/harshavardhanj/.ssh/keychain/rpi_key.pub
+
+
+    # Vim configuration file
+    vim_config_file:
+        - /Users/harshavardhanj/.vimrc
 
     # NetworkManager ethernet interface information
     nmcli_eth:
@@ -46,7 +53,7 @@
           gw4: '{{ wlan_gw }}'
           dns: '{{ wlan_dns }}'
           ssid: "Office"
-          psk: "eme@1363"
+          psk: '"eme@1363"'
 
         - conn_name: "WiFiSecond_Floor"
           ifname: wlan0
@@ -54,7 +61,7 @@
           gw4: '{{ wlan_gw }}'
           dns: '{{ wlan_dns }}'
           ssid: "Second_Floor"
-          psk: "11235_burl_81321"
+          psk: '"11235_burl_81321"'
 
     eth_router_name: "WiredRouterConn"
     eth_router_ip: "192.168.1.51/24"
@@ -96,13 +103,13 @@
 
     - name: Copy local SSH public key(s) to machine
       copy:
-          src: '{{ item }}'
+          src: "{{ item }}"
           dest: ~/
           owner: pi
           group: pi
           mode: 0400
       with_items:
-          - '{{ ssh_keys }}'
+          - "{{ ssh_keys }}"
       register: ssh_key_file
 
     # Copy given SSH keys to user's 'authorized keys' file
@@ -110,13 +117,24 @@
       authorized_key:
           user: pi
           state: present
-          key: '{{ item }}'
+          key: "{{ item }}"
       with_items:
-          - '{{ ssh_key_file.dest }}'
+          - "{{ ssh_key_file.dest }}"
       when: ssh_key_file.changed
       notify: delete ssh public keys
 
-    
+
+    # Copy Vim configuration file to machine
+    - name: Copy Vim configuration file
+      copy:
+          src: "{{ item }}"
+          dest: ~/
+          owner: pi
+          group: pi
+          mode: 0644
+      with_items:
+          - "{{ vim_config_file }}"
+
     # Set up Wired Networking
     - name: Set up Wired(Ethernet) Connection
       nmcli:

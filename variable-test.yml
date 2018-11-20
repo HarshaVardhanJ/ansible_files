@@ -1,0 +1,29 @@
+---
+# variable-test.yml   :   Ansible playbook for printing output of variables
+#
+#
+
+- hosts: localhost
+  
+  vars:
+    profile:
+      eth0:
+        - gw: 192.168.1.1
+          ip: 192.168.1.50/24
+          dns: 8.8.8.8 8.8.4.4
+
+        - gw: 192.168.2.1
+          ip: 192.168.2.50/24
+          dns: 8.8.8.8 8.8.4.4
+
+      wlan0:
+        - gw: 192.168.1.1
+          ip: 192.168.1.50/24
+          dns: 8.8.8.8 8.8.4.4
+
+
+  tasks:
+    - name: Print variables
+      debug: msg="interface {{ item[0] }} and arping {{ item[1].gw }}"
+      with_nested:
+        - profile

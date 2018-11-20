@@ -15,6 +15,7 @@
   strategy: free
   vars:
       - docker_script_url: http://get.docker.com
+      - docker_install_script: "{{ home_dir }}"/docker_install.sh
       - home_dir: /home/pi
       - k8s_apt_key_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
       - k8s_apt_sources_file: /etc/apt/sources.list.d/kubernetes.list
@@ -29,16 +30,27 @@
             state: latest
             update_cache: yes
 
+      # Cleanup after updating
+      - name: Removed unused data from cache
+        apt:
+          autoclean: yes
+
+      - name: Remove unused dependencies
+        apt:
+          autoremove: yes
+
       # Downloading Docker installation script from URL
       - name: Download Docker
         get_url:
             url: "{{ docker_script_url }}"
-            dest: "{{ home_dir }}"/docker_install.sh
+            dest: "{{ docker_install_script }}"
             mode: 0540
+            owner: pi
+            group: pi
 
       # Installing Docker from install script
       - name: Install Docker
-        shell: "{{ home_dir }}"/docker_install.sh
+        shell: "{{ docker_install_script }}"
         args:
             executable: /bin/sh
         notify:
@@ -105,5 +117,5 @@
       # Delete Docker installation script
       - name: remove docker install script
         file:
-            path: "{{ home_dir }}"/docker_install.sh
+            path: "{{ docker_install_script }}"
             state: absent

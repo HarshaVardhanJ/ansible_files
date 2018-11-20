@@ -1,0 +1,129 @@
+# Media Wiki Installation script
+#
+#
+- hosts: vagrant-mediawiki
+  remote_user: vagrant
+  become: yes
+
+  vars:
+    repo_packages:
+      - epel-release
+      - centos-release-scl
+    packages:
+      - httpd24-httpd
+      - mariadb-server
+      - mariadb
+      - gtar
+      - MySQL-python
+      - rh-php71
+      - rh-php71-php
+      - rh-php71-php-common
+      - rh-php71-php-fpm
+      - rh-php71-php-gd
+      - rh-php71-php-json
+      - rh-php71-php-mbstring
+      - rh-php71-php-mysqlnd
+      - rh-php71-php-xml
+      - rh-php71-php-pecl-apcu
+      - rh-php71-php-intl
+
+    enable_packages:
+      - httpd24
+      - rh-php71
+
+    start_packages:
+      - httpd24-httpd
+      - rh-php71-php-fpm
+      - mariadb
+
+    mediawiki_download_url: https://releases.wikimedia.org/mediawiki/1.31/mediawiki-1.31.0.tar.gz
+
+    mediawiki_extracted_files: /opt/rh/httpd24/root/var/www/html/mw
+
+    webserver_root: /opt/rh/httpd24/root/var/www/html/
+
+    root_pwd: mediawiki
+
+
+  tasks:
+
+    - name: Install extra repository packages
+      yum:
+        name: "{{ repo_packages }}"
+        state: latest
+      register: repo_added
+
+    - name: Install necessary dependencies
+      yum:
+        name: "{{ packages }}"
+        state: latest
+      register: packages_installed
+      when: repo_added is changed
+
+    - name: Download and extract MediaWiki files
+      unarchive:
+        src: "{{ mediawiki_download_url }}"
+        dest: "{{ mediawiki_extracted_files }}"
+        remote_src: yes
+
+    - name: Set up 'httpd24-httpd' and 'rh-php71' packages
+      command: scl enable "{{ item }}" bash
+      register: packages_setup
+      with_items:
+        "{{ enable_packages }}"
+
+    - name: Enable and start packages
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      with_items:
+        "{{ start_packages }}"
+
+# MySQL set up, database creation
+
+    - name: Set root user password
+      mysql_user:
+        login_user: root
+        name: root
+        password: "{{ root_pwd }}"
+        host_all : yes
+
+    - name: Remove all anonymous users
+      mysql_user:
+        login_user: root
+        login_password: "{{ root_pwd }}"
+        name: ""
+        host_all: yes
+        state: absent
+
+    - name: Delete test database
+      mysql_db:
+        login_user: root
+        login_password: "{{ root_pwd }}"
+        name: test_db
+        state: absent
+
+    - name: Add database for MediaWiki
+      mysql_db:
+        login_user: root
+        login_password: "{{ root_pwd }}"
+        name: mediawiki
+        state: present
+
+    - name: Add user for MediaWiki
+      mysql_user:
+        login_user: root
+        login_password: "{{ root_pwd }}"
+        name: mediawiki
+        password: mediawiki
+        priv: 'mediawiki.*:ALL'
+        state: present
+
+    - name: Restart httpd and mariadb services
+      systemd:
+        name: "{{ item }}"
+        daemon_reload: yes
+        state: restarted
+      with_items:
+        "{{ start_packages }}"

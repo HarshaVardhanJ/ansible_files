@@ -1,0 +1,32 @@
+# Ansible file for performing the same actions as the 'mysql_secure_installation' command
+#
+#
+vars:
+  root-pwd: root
+
+tasks:
+  - name: Install dependencies for MySQL control
+    yum:
+      name: MySQL-python
+      state: latest
+
+  - name: Set root user password
+    mysql_user:
+      name: root
+      password: "{{ root-pwd }}"
+      host_all : yes
+
+  - name: Remove all anonymous users
+    mysql_user:
+      login_user: root
+      login_password: "{{ root-pwd }}"
+      name: ""
+      host_all: yes
+      state: absent
+
+  - name: Delete test database
+    mysql_db:
+      login_user: root
+      login_password: "{{ root-pwd }}"
+      name: test_db
+      state: absent
