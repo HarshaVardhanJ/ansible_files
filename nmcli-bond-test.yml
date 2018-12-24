@@ -1,0 +1,66 @@
+# Test Playbook for testing network bonding
+#
+#
+- hosts: rpi
+  remote_user: pi
+  become: yes
+
+  vars:
+    wlan:
+      - type: wlan
+        ifname: wlan0
+        ip4: 192.168.1.10/24
+        gw4: 192.168.1.1/24
+
+    ethernet:
+      - type: ethernet
+        ifname: eth0
+        ip4: 192.168.1.10/24
+        gw4: 192.168.1.1/24
+
+    nmcli_bond:
+      - conn_name: bond_conn
+        ip4: '{{ bond_master_ip }}'
+        gw4: '{{ bond_master_gw }}'
+        mode: active-backup
+
+    nmcli_bond_slave:
+      - conn_name: ethernet-bond-slave
+        ifname: eth0
+        master: bond_conn
+
+      - conn_name: wlan-bond-slave
+        ifname: wlan0
+        master: bond_conn
+
+    bond_master_ip: "192.168.1.40/24"
+    bond_master_gw: "192.168.1.1"
+
+
+  tasks:
+
+    - name: Create bond connection
+      nmcli:
+        type: bond
+        conn_name: '{{ item.conn_name }}'
+        miimon: 100
+        mode: '{{ item.mode }}'
+        ip4: '{{ item.ip4 }}'
+        gw4: '{{ item.gw4 }}'
+        primary: eth0
+        state: present
+      with_items:
+        - "{{ nmcli_bond }}"
+
+
+    - name: Add bond-slave
+      nmcli:
+        type: bond-slave
+        conn_name: '{{ item.conn_name }}'
+        ifname: '{{ item.ifname }}'
+        master: '{{ item.master }}'
+        state: present
+      with_items:
+        - "{{ nmcli_bond_slave }}"
+
+
