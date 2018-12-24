@@ -22,7 +22,7 @@ ansible_host=localhost
 ansible_pass=vagrant
 
 [rpi]
-pi ansible_host=192.168.1.10
+pi ansible_host=192.168.2.10
 
 [rpi:vars]
 ansible_user=pi
