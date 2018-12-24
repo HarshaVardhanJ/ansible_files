@@ -5,6 +5,6 @@
   lineinfile:
       path: /boot/cmdline.txt
       backup: yes
-      line: 'cgroup_enable=cpuset cgroup_memory=1'
+      line: 'cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1'
   register: cmdline_edit
   when: swap_disable.changed
