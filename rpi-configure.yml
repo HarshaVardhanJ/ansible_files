@@ -8,24 +8,30 @@
   vars:
     # Packages to be installed
     packages:
-        - vim                   # Vim Text Editor
-        - vim-common            # Vim Text Editor common files
-        - tmux                  # Terminal Multiplexer
-        - ranger                # Terminal-based file manager
-        - htop                  # Process monitor
-        - sysstat               # For system activity reporter
-        - elinks                # CLI-based browser
-        - network-manager       # Network management
-        - libnm-glib-dev        # Needed for managing networking using Ansible
-        - dbus                  # Needed for managing networking using Ansible   
-        - python-dbus           # Needed by 'nmcli' module of Ansible
-        - iptables              # IPTables firewall
-        - iptables-persistent   # Package to ensure that firewall rules survive reboot
+        - vim                           # Vim Text Editor
+        - vim-common                    # Vim Text Editor common files
+        - tmux                          # Terminal Multiplexer
+        - ranger                        # Terminal-based file manager
+        - htop                          # Process monitor
+        - sysstat                       # For system activity reporter
+        - elinks                        # CLI-based browser
+        - network-manager               # Network management
+        - libnm-glib-dev                # Needed for managing networking using Ansible
+        - dbus                          # Needed for managing networking using Ansible   
+        - python-dbus                   # Needed by 'nmcli' module of Ansible
+        - libsemanage1                  # Needed by 'nmcli' module of Ansible
+        - policycoreutils-python-utils  # Needed by 'nmcli' module of Ansible
+        - iptables                      # IPTables firewall
+        - iptables-persistent           # Package to ensure that firewall rules survive reboot
 
     # SSH keys to be added
     ssh_keys:
         - /Users/harshavardhanj/.ssh/keychain/rpi_key.pub
 
+    sshd_config_file:
+      - /Users/harshavardhanj/GitRepos/ansible_files/sshd_config
+
+    sshd_dir: /etc/ssh/
 
     # Vim configuration file
     vim_config_file:
@@ -135,6 +141,18 @@
       with_items:
           - "{{ vim_config_file }}"
 
+
+    # Copy SSHD configuration 'sshd_config' file
+    - name: Copy SSHD configuration file
+      copy:
+        src: "{{ item }}"
+        dest: "{{ sshd_dir }}"
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - "{{ sshd_config_file }}"
+
     # Set up Wired Networking
     - name: Set up Wired(Ethernet) Connection
       nmcli:
@@ -181,14 +199,16 @@
       with_items:
           - '{{ nmcli_wlan }}'
       register: wifi_present
-      failed_when: wifi_present.rc == 2
+      failed_when: wifi_present.rc == 1
+      # The exit code of grep is '0' is any lines are matches, and '1' if no lines are matched, and '2' if an error occurs.
 
     - name: nmcli wifi add
       command: nmcli device wifi connect '{{ item.ssid }}' name '{{ item.conn_name }}' ifname '{{ item.ifname }}' password "{{ item.psk }}"
       with_items:
           - '{{ nmcli_wlan }}'
       register: wifi_add
-      #      when: wifi_present.rc == 0
+      when: wifi_present.rc == 0
+      # When the exit code of grep in the previous task is '0', run this task. That is, if any lines match, run this task.
 
     - name: nmcli wifi ip address
       shell: nmcli con mod '{{ item.conn_name }}' ipv4.addresses '{{ item.ip4 }}' ipv4.gateway '{{ item.gw4 }}' ipv4.dns '{{ item.dns }}' connection.autoconnect yes && nmcli con up '{{ item.conn_name }}'
