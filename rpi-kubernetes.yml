@@ -75,6 +75,13 @@
             line: 'cgroup_enable=cpuset cgroup_memory=1'
         register: bootfile_edit
 
+      #  Reduce memory dedicated to GPU
+      - name: Reduce GPU memory
+        lineinfile:
+          path: /boot/cmdline.txt
+          backup: yes
+          line: 'gpu_mem=16'
+
       # Rebooting after changes to '/boot/cmdline.txt' and disabling swap
       - name: Reboot after change to '/boot/cmdline.txt' file
         shell: sleep 3 && reboot

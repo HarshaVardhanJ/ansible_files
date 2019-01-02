@@ -1,0 +1,309 @@
+---
+# rpi_configure.yml :   Playbook for configuring freshly-booted Raspberry Pis
+
+- hosts: rpi
+  remote_user: pi
+  become: yes
+
+  vars:
+    # Packages to be installed
+    packages:
+        - vim                           # Vim Text Editor
+        - vim-common                    # Vim Text Editor common files
+        - rsyslog                       # Package for logging and log management
+        - network-manager               # Network management
+        - libnm-glib-dev                # Needed for managing networking using Ansible
+        - dbus                          # Needed for managing networking using Ansible   
+        - python-dbus                   # Needed by 'nmcli' module of Ansible
+        - libsemanage1                  # Needed by 'nmcli' module of Ansible
+        - policycoreutils-python-utils  # Needed by 'nmcli' module of Ansible
+        - iptables                      # IPTables firewall
+        - iptables-persistent           # Package to ensure that firewall rules survive reboot
+        - netfilter-persistent          # Package to ensure that firewall rules survive reboot
+
+    # SSH keys to be added, along with their sha1sum for integrity check
+    ssh_keys:
+      - keyfile: /Users/harshavardhanj/.ssh/keychain/rpi_key.pub
+        sha1sum: "f5ad8bb3added80dc9135e774d82039f762c88ae"
+
+    sshd_config_file:
+      - /Users/harshavardhanj/GitRepos/ansible_files/sshd_config
+
+    sshd_dir: /etc/ssh/
+
+    # Vim configuration file
+    vim_config_file:
+        - /Users/harshavardhanj/.vimrc
+
+    # NetworkManager ethernet interface information
+    nmcli_eth:
+        - conn_name: '{{ eth_name }}'
+          type: ethernet
+          ifname: eth0
+          ip: '{{ eth_ip }}'
+          gw: '{{ eth_gw }}'
+
+    # Values for Ethernet connection variables
+    eth_name: "EthConn"
+    eth_ip: "192.168.1.50/24"
+    eth_gw: "192.168.1.1"
+    eth_dns: "1.1.1.1 8.8.8.8 8.8.4.4"
+
+    iptables_logfile: "/var/log/iptables.log"
+    iptables_logrotate: "/etc/logrotate.d/iptables.conf"
+
+
+  tasks:
+    # Update all packages and repositories
+    - name: Update all packages
+      apt:
+          name: "*"
+          state: latest
+          update_cache: yes
+
+    # Install packages given in 'vars'
+    - name: Install "{{ packages }}"
+      apt:
+          name: "{{ packages }}"
+          state: latest
+          update_cache: yes
+
+    # Cleanup after updating and installation of packages
+    - name: Remove useless packages from cache
+      apt:
+          autoclean: yes
+
+    - name: Remove dependencies that are no longer required
+      apt:
+          autoremove: yes
+
+    - name: Copy local SSH public key(s) to machine
+      copy:
+          src: "{{ item.keyfile }}"
+          dest: ~/
+          checksum: "{{ item.sha1sum }}"
+          owner: pi
+          group: pi
+          mode: 0400
+      with_items:
+          - "{{ ssh_keys }}"
+      register: ssh_key_file
+
+    # Copy given SSH keys to user's 'authorized keys' file
+    - name: Copy SSH keys
+      authorized_key:
+          user: pi
+          state: present
+          key: '{{ item }}'
+      with_items:
+          - '{{ ssh_key_file.dest }}'
+      when: ssh_key_file.checksum == '{{ item.sha1sum }}'
+      with_items:
+        - '{{ ssh_keys }}'
+      notify: delete ssh public keys
+
+
+    # Copy Vim configuration file to machine
+    - name: Copy Vim configuration file
+      copy:
+          src: "{{ item }}"
+          dest: ~/
+          owner: pi
+          group: pi
+          mode: 0644
+      with_items:
+          - "{{ vim_config_file }}"
+
+
+    # Copy SSHD configuration 'sshd_config' file
+    - name: Copy SSHD configuration file
+      copy:
+        src: "{{ item }}"
+        dest: "{{ sshd_dir }}"
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - "{{ sshd_config_file }}"
+
+    # Set up Wired Networking
+    - name: Set up Wired(Ethernet) Connection
+      nmcli:
+          conn_name: '{{ item.conn_name }}'
+          type: '{{ item.type }}'
+          ifname: '{{ item.ifname }}'
+          ip4: '{{ item.ip }}'
+          gw4: '{{ item.gw }}'
+          dns4: '{{ item.dns }}'
+          state: present
+          autoconnect: yes
+      with_items:
+          - "{{ nmcli_eth }}"
+
+    # Create logfile for iptables logging, and logrotate config
+    # file for iptables
+    - name: Create iptables.log and logrotate config
+      file:
+        path: '{{ item }}'
+        state: touch
+        mode: 0640
+        owner: root
+        group: root
+      with_items:
+        - '{{ iptables_logfile }}'
+        - '{{ iptables_logrotate }}'
+
+
+    # Add logrotate configuration
+    - name: Add logrotate configuration for iptables
+      blockinfile:
+        path: '{{ iptables_logrotate }}'
+        block: |
+          "'{{ iptables_logfile }}'" {
+            rotate 3                      # Rotate 3 log files before being removed.
+            size 200k                     # Rotate the log file when its size reaches 200kB.
+            copytruncate                  # Truncate the original log file to zero size in place after creating a copy.
+            dateext                       # Archive old versions of log files adding a date extension.
+            dateformat %d%m               # Format to use for the 'dateext' option.
+            dateyesterday                 # Use yesterday's instead of today's date to create the dateext extension, 
+                                            # so that the rotated log file has a date in its name that is the same as the 
+                                            # timestamps within it.
+            notifempty                    # Do not rotate the log if it is empty.
+            shred                         # Delete log files using shred -u instead of unlink(). 
+                                            # This should ensure that logs are not readable after their scheduled deletion.
+          }
+
+
+    # Setting up firewall rules
+    #
+    - name: Set up IPTables rules
+      # Allow input packets on loopback interface
+      iptables:
+        action: append
+        chain: INPUT
+        in_interface: lo
+        jump: ACCEPT
+        comment: Allow input packets on loopback interface
+
+      # Allow TCP packets which have a state of related,established on eth0 interface
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: tcp
+        in_interface: eth0
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+        comment: Allow all established, related connections on eth0
+
+      # Allow all TCP packets originating from the other Pis
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: tcp
+        in_interface: eth0
+        source: "192.168.1.160 192.168.1.161 192.168.1.162"
+        jump: ACCEPT
+        comment: Allow all tcp connections from the other Pis
+
+      # Allow TCP packets with a destination port of 22 on eth0 interface
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: tcp
+        in_interface: eth0
+        destination_port: 22
+        jump: ACCEPT
+        comment: Allow tcp connection attempts on port 22 (SSH)
+
+      # Allow UDP packets from port 53 associated with an established connection originating from
+      # pre-defined DNS server IP addresses
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: udp
+        in_interface: eth0
+        source: '{{ eth_dns }}'
+        source_port: 53
+        ctstate: ESTABLISHED
+        jump: ACCEPT
+        comment: Accept all established UDP connections from certain IP and port 53 (DNS)
+
+      # Allow TCP packets from port 53 associated with an established connection originating from
+      # pre-defined DNS server IP addresses
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: tcp
+        in_interface: eth0
+        source: '{{ eth_dns }}'
+        source_port: 53
+        ctstate: ESTABLISHED
+        jump: ACCEPT
+        comment: Accept all established TCP connections from certain IP and port 53 (DNS)
+
+      # Allow ICMP echo-request packets at a limited rate of 3/second
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: icmp
+        in_interface: eth0
+        icmp_type: echo-request
+        limit: 3/second
+        limit_burst: 5
+        jump: ACCEPT
+        comment: Accept ICMP echo requests at a limited rate of 3/s
+
+      # Allow ICMP echo-reply packets at a limited rate of 3/second
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: icmp
+        icmp_type: echo-reply
+        limit: 3/second
+        limit_burst: 5
+        jump: ACCEPT
+        comment: Accept ICMP echo replies at a limited rate of 3/s
+
+      # Allow ICMP source-quench packets at a limited rate of 2/second
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: icmp
+        icmp_type: source-quench
+        limit: 2/second
+        jump: ACCEPT
+        comment: Accept ICMP source quench at a limited rate of 2/s
+
+      # Log all further packets with a pre-defined prefix, at a limited rate of 3/second
+      iptables:
+        action: append
+        chain: INPUT
+        protocol: tcp
+        limit: 3/s
+        limit_burst: 5
+        log_prefix: "[IPTABLES DROPPED]: "
+        jump: LOG
+        comment: Log all TCP packets with a prefix
+
+        # Set INPUT chain policy to DROP
+        iptables:
+          chain: INPUT
+          policy: DROP
+
+        # Set FORWARD chain policy to DROP
+        iptables:
+          chain: FORWARD
+          policy: DROP
+
+        # Set OUTPUT chain policy to ACCEPT
+        iptables:
+          chain: OUTPUT
+          policy: ACCEPT
+        
+
+  handlers:
+    # Delete the SSH public key that was copied to the remote machine
+    - name: delete ssh public keys
+      file:
+          path: '{{ ssh_key_file.dest }}'
+          state: absent
