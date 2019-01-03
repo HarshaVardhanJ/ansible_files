@@ -1,8 +1,8 @@
 ---
 # rpi_configure.yml :   Playbook for configuring freshly-booted Raspberry Pis
 
-- hosts: rpi
-  remote_user: pi
+- hosts: vagrant-testvm
+  remote_user: vagrant
   become: yes
 
   vars:
@@ -11,25 +11,21 @@
         - vim                           # Vim Text Editor
         - vim-common                    # Vim Text Editor common files
         - rsyslog                       # Package for logging and log management
-        - network-manager               # Network management
-        - libnm-glib-dev                # Needed for managing networking using Ansible
-        - dbus                          # Needed for managing networking using Ansible   
-        - python-dbus                   # Needed by 'nmcli' module of Ansible
-        - libsemanage1                  # Needed by 'nmcli' module of Ansible
-        - policycoreutils-python-utils  # Needed by 'nmcli' module of Ansible
+        - libsemanage-python            # Needed by 'nmcli' module of Ansible
+        - policycoreutils-python        # Needed by 'nmcli' module of Ansible
+        - NetworkManager-glib           # Needed by 'nmcli' module of Ansible
         - iptables                      # IPTables firewall
-        - iptables-persistent           # Package to ensure that firewall rules survive reboot
-        - netfilter-persistent          # Package to ensure that firewall rules survive reboot
+        - iptables-services             # Package to ensure that firewall rules survive reboot
 
     # SSH keys to be added, along with their sha1sum for integrity check
     ssh_keys:
-     - keyfile: "/Users/harshavardhanj/.ssh/keychain/rpi_key.pub"
-        key: "{{ lookup('file', '/Users/harshavardhanj/.ssh/keychain/rpi_key.pub') }}"
-        sha1sum: "f5ad8bb3added80dc9135e774d82039f762c88ae"
-        name: "pi"
+      - keyfile: "/Users/harshavardhanj/.ssh/keychain/vagrant_key.pub"
+        key: "{{ lookup('file', '/Users/harshavardhanj/.ssh/keychain/vagrant_key.pub') }}"
+        sha1sum: "3b075c10fde1b88ecfcbbf297578b916bf9b8c5a"
+        name: "vagrant"
 
     sshd_config_file:
-      - "Users/harshavardhanj/GitRepos/ansible_files/sshd_config"
+      - "/Users/harshavardhanj/GitRepos/ansible_files/sshd_config"
 
     sshd_dir: "/etc/ssh/"
 
@@ -41,53 +37,45 @@
     nmcli_eth:
         - conn_name: '{{ eth_name }}'
           type: ethernet
-          ifname: eth0
+          ifname: eth2
           ip: '{{ eth_ip }}'
           gw: '{{ eth_gw }}'
           dns: "{{ eth_dns }}"
 
     # Values for Ethernet connection variables
     eth_name: "EthConn"
-    eth_ip: "192.168.1.50/24"
+    eth_ip: "192.168.1.40/24"
     eth_gw: "192.168.1.1"
     eth_dns: "1.1.1.1 8.8.8.8 8.8.4.4"
 
     iptables_logfile: "/var/log/iptables.log"
     iptables_logrotate: "/etc/logrotate.d/iptables.conf"
-    rsyslog_iptables: "/etc/rsyslog.d/10-iptables.conf"
+    iptables_rsyslog: "/etc/rsyslog.d/10-iptables.conf"
 
 
   tasks:
     # Update all packages and repositories
     - name: Update all packages
-      apt:
+      yum:
           name: "*"
           state: latest
           update_cache: yes
 
     # Install packages given in 'vars'
     - name: Install "{{ packages }}"
-      apt:
+      yum:
           name: "{{ packages }}"
           state: latest
           update_cache: yes
 
-    # Cleanup after updating and installation of packages
-    - name: Remove useless packages from cache
-      apt:
-          autoclean: yes
-
-    - name: Remove dependencies that are no longer required
-      apt:
-          autoremove: yes
-
+    # Copy SSH public key(s) to remote machine
     - name: Copy local SSH public key(s) to machine
       copy:
           src: "{{ item.keyfile }}"
           dest: ~/
           checksum: "{{ item.sha1sum }}"
-          owner: pi
-          group: pi
+          owner: vagrant
+          group: vagrant
           mode: 0400
       with_items:
           - "{{ ssh_keys }}"
@@ -100,7 +88,7 @@
           state: present
           key: "{{ item.key }}"
       with_items:
-        - '{{ ssh_keys }}'
+          - "{{ ssh_keys }}"
       when: ssh_key_file.changed
       notify: delete ssh public keys
 
@@ -110,8 +98,8 @@
       copy:
           src: "{{ item }}"
           dest: ~/
-          owner: pi
-          group: pi
+          owner: vagrant
+          group: vagrant
           mode: 0644
       with_items:
           - "{{ vim_config_file }}"
@@ -128,19 +116,24 @@
       with_items:
         - "{{ sshd_config_file }}"
 
-    # Set up Wired Networking
-    - name: Set up Wired(Ethernet) Connection
-      nmcli:
-          conn_name: '{{ item.conn_name }}'
-          type: '{{ item.type }}'
-          ifname: '{{ item.ifname }}'
-          ip4: '{{ item.ip }}'
-          gw4: '{{ item.gw }}'
-          dns4: '{{ item.dns }}'
-          state: present
-          autoconnect: yes
-      with_items:
-          - "{{ nmcli_eth }}"
+
+   # Create rsyslog configuration file for iptables
+   - name: Rsyslog file for iptables
+     file: '{{ item }}'
+       state: touch
+       mode: 0640
+       owner: root
+       group: root
+     with_items:
+       - "{{ iptables_rsyslog }}"
+   # Add config details to rsyslog iptables file
+   - name: Rsyslog configuration for iptables
+     blockinfile:
+       path: "{{ iptables_rsyslog }}"
+       block: |
+         :msg, contains, "IPTABLES DROPPED: " {{ iptables_logfile }}
+         & ~
+
 
     # Create logfile for iptables logging, and logrotate config
     # file for iptables
@@ -155,32 +148,13 @@
         - '{{ iptables_logfile }}'
         - '{{ iptables_logrotate }}'
 
-    # Create rsyslog configuration file for iptables
-    - name: Rsyslog file for iptables
-      file: '{{ item }}'
-        state: touch
-        mode: 0640
-        owner: root
-        group: root
-      with_items:
-        - "{{ rsyslog_iptables }}"
-
-
-    # Add config details to rsyslog iptables file
-    - name: Rsyslog configuration for iptables
-      blockinfile:
-        path: "{{ rsyslog_iptables }}"
-        block: |
-          :msg, contains, "IPTABLES DROPPED: " {{ iptables_logfile }}
-          & ~
-
 
     # Add logrotate configuration
     - name: Add logrotate configuration for iptables
       blockinfile:
         path: '{{ iptables_logrotate }}'
         block: |
-          "{{ iptables_logfile }}" {
+          "'{{ iptables_logfile }}'" {
             rotate 3                      # Rotate 3 log files before being removed.
             size 200k                     # Rotate the log file when its size reaches 200kB.
             copytruncate                  # Truncate the original log file to zero size in place after creating a copy.
@@ -194,11 +168,10 @@
                                             # This should ensure that logs are not readable after their scheduled deletion.
           }
 
-
     # Setting up firewall rules
     #
     # Allow input packets on loopback interface
-    - name: Set up IPTables rules
+    - name: Allow packets on loopback interface
       iptables:
         action: append
         chain: INPUT
