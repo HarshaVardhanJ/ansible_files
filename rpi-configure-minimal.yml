@@ -218,15 +218,15 @@
         comment: Allow all established, related connections on eth0
 
       # Allow all TCP packets originating from the other Pis
-    - name: Allow connections from other Pis
-      iptables:
-        action: append
-        chain: INPUT
-        protocol: tcp
-        in_interface: eth0
-        source: "192.168.1.160,192.168.1.161,192.168.1.162"
-        jump: ACCEPT
-        comment: Allow all tcp connections from the other Pis
+      #    - name: Allow connections from other Pis
+      #      iptables:
+      #        action: append
+      #        chain: INPUT
+      #        protocol: tcp
+      #        in_interface: eth0
+      #        source: "192.168.1.160,192.168.1.161,192.168.1.162"
+      #        jump: ACCEPT
+      #        comment: Allow all tcp connections from the other Pis
 
       # Allow TCP packets with a destination port of 22 on eth0 interface
     - name: Allow SSH connections
@@ -322,16 +322,16 @@
         policy: DROP
 
       # Set FORWARD chain policy to DROP
-    - name: Forward chain to Drop
-      iptables:
-        chain: FORWARD
-        policy: DROP
+      #    - name: Forward chain to Drop
+      #      iptables:
+      #        chain: FORWARD
+      #        policy: DROP
 
       # Set OUTPUT chain policy to ACCEPT
-    - name: Output chain to Drop
-      iptables:
-        chain: OUTPUT
-        policy: ACCEPT
+      #    - name: Output chain to Accept
+      #      iptables:
+      #        chain: OUTPUT
+      #        policy: ACCEPT
         
 
   handlers:
