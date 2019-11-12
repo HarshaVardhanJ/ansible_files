@@ -1,0 +1,11 @@
+# Playbook for installing K3s on RPis
+#
+- name: Installing K3s
+  remote_user: pi
+  become: yes
+  vars:
+    - k3s_download_url : 
+    - k3s_binary_name :
+    - k3s_version: 
+  tasks:
+    - name: Download K3s binary
